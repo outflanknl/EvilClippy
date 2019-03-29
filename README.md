@@ -84,7 +84,7 @@ Service *macrofile.dot* via HTTP port 8080 after performing VBA stomping. If thi
 
 `EvilClippy.exe -s fakecode.vba -w 8080 macrofile.dot`
 
-Note: The file you are serving must be a template (.dot instead of .doc). Also, fakecode.vba must have the proper attributes set for a macro from a template (contact me for details). You can set a template via a URL (.dot is not required!) from the developer toolbar in Word.
+Note: The file you are serving must be a template (.dot instead of .doc). You can set a template via a URL (.dot extension is not required!) from the developer toolbar in Word. Also, fakecode.vba must have a VB_Base attribute set for a macro from a template (this means that your facecode.vba must start with a line such as *Attribute VB_Base = "0{00020906-0000-0000-C000-000000000046}"*).
 
 ## Limitations
 

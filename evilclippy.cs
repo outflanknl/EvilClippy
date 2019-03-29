@@ -2,8 +2,8 @@
 // Cross-platform CFBF and MS-OVBA manipulation assistant
 //
 // Author: Stan Hegt (@StanHacked) / Outflank
-// Date: 20190324
-// Version: 1.0
+// Date: 20190329
+// Version: 1.01 (bugfix)
 //  
 // Compilation instructions
 // Mono: mcs /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs 
@@ -288,7 +288,7 @@ public class MSOfficeManipulator
 		{
 			try
 			{
-				WebServer ws = new WebServer(SendFile, "http://*:" + optionWebserverPort.ToString() + "/*");
+				WebServer ws = new WebServer(SendFile, "http://*:" + optionWebserverPort.ToString() + "/");
 				ws.Run();
 				Console.WriteLine("Webserver starting on port " + optionWebserverPort.ToString() + ". Press a key to quit.");
 				Console.ReadKey();
