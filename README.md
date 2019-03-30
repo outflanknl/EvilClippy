@@ -29,7 +29,7 @@ Evil Clippy compiles perfectly fine with the Mono C# compiler and has been teste
 **OSX and Linux**
 Make sure you have Mono installed. Then execute the following command from the command line:
 
-`mcs /reference:OpenMcdf.dll /out:EvilClippy.exe *.cs`
+`mcs /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs`
 
 Now run Evil Clippy from the command line:
 
@@ -38,7 +38,7 @@ Now run Evil Clippy from the command line:
 **Windows**
 Make sure you have Visual Studio installed. Then execute the following command from a Visual Studio developer command prompt:
 
-`csc /reference:OpenMcdf.dll /out:EvilClippy.exe *.cs`
+`csc /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs`
 
 Now run Evil Clippy from the command line:
 
@@ -62,6 +62,8 @@ Put fake VBA code from text file *fakecode.vba* in all modules, while leaving P-
 
 `EvilClippy.exe -s fakecode.vba macrofile.doc`
 
+Note: VBA Stomping does not work for files saved in the Excel 97-2003 Workbook (.xls) format
+
 **Set target Office version for VBA stomping**
 
 Same as the above, but now explicitly targeting Word 2016 on x86. This means that Word 2016 on x86 will execute the P-code, while other versions of Word wil execute the code from *fakecode.vba* instead. Achieved by setting the appropriate version bytes in the _VBA_PROJECT stream [MS-OVBA 2.3.4.1].
@@ -74,6 +76,8 @@ Set random ASCII module names in the dir stream [MS-OVBA 2.3.4.2]. This abuses a
 
 `EvilClippy.exe -r macrofile.doc`
 
+Note: this is known to be effective in tricking oletools olevba.py module when run against Word 97-2003 Documents (.doc)
+
 **Serve a VBA stomped template via HTTP**
 
 Service *macrofile.dot* via HTTP port 8080 after performing VBA stomping. If this file is retrieved, it automatically matches the target's Office version (using its HTTP headers and then setting the _VBA_PROJECT bytes accordingly).
@@ -84,9 +88,9 @@ Note: The file you are serving must be a template (.dot instead of .doc). You ca
 
 ## Limitations
 
-The current version only works with the CFBF-based Office 97-2003 format for Word (the famous .doc files). The newer XML-based format (.docm) is not yet supported. Neither is Excel (.xls and .xlsm). 
+Developed for Microsoft Word and Excel document manipulation.
 
-All of these lacking features might be added in future releases.
+As noted above, VBA stomping is not effective against Excel 97-2003 Workbook (.xls) format.
 
 ## Authors
 Stan Hegt ([@StanHacked](https://twitter.com/StanHacked)) / [Outflank](https://www.outflank.nl)
