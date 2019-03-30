@@ -76,7 +76,7 @@ Set random ASCII module names in the dir stream [MS-OVBA 2.3.4.2]. This abuses a
 
 `EvilClippy.exe -r macrofile.doc`
 
-Note: this is known to be effective in tricking oletools olevba.py module when run against Word 97-2003 Documents (.doc)
+Note: this is known to be effective in tricking pcodedmp and VirusTotal
 
 **Serve a VBA stomped template via HTTP**
 
