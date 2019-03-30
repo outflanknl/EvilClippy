@@ -95,4 +95,6 @@ As noted above, VBA stomping is not effective against Excel 97-2003 Workbook (.x
 ## Authors
 Stan Hegt ([@StanHacked](https://twitter.com/StanHacked)) / [Outflank](https://www.outflank.nl)
 
-Special thanks to Nick Landers ([@monoxgas](https://twitter.com/monoxgas)) for pointing me towards OpenMCDF.
+With significant contributions from Carrie Robberts ([@OrOneEqualsOne](https://twitter.com/OrOneEqualsOne) / Walmart).
+
+Special thanks to Nick Landers ([@monoxgas](https://twitter.com/monoxgas) / Silent Break Security) for pointing me towards OpenMCDF.
