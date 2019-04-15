@@ -91,11 +91,11 @@ Note: The file you are serving must be a template (.dot instead of .doc). You ca
 
 To set the Locked/Unviewable attributes use the '-u' option:
 
-EvilClippy.exe -u macrofile.doc
+`EvilClippy.exe -u macrofile.doc`
 
 To remove the Locked/Unviewable attributes use the '-uu' option:
 
-EvilClippy.exe -uu macrofile.doc
+`EvilClippy.exe -uu macrofile.doc`
 
 Note: You can remove the Locked/Unviewable attributes on files that were locked using other tools and methods as well.
 
