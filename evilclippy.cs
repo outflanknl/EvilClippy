@@ -2,9 +2,11 @@
 // Cross-platform CFBF and MS-OVBA manipulation assistant
 //
 // Author: Stan Hegt (@StanHacked) / Outflank
-// Date: 20190329
-// Version: 1.01 (bugfix)
-//  
+// Date: 20190330
+// Version: 1.1 (added support for xls, xlsm and docm)
+//
+// Special thanks to Carrie Robberts (@OrOneEqualsOne) from Walmart for her contributions to this project.
+//
 // Compilation instructions
 // Mono: mcs /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs 
 // Visual studio developer command prompt: csc /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs 
