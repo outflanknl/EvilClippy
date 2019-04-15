@@ -97,7 +97,7 @@ To remove the Locked/Unviewable attributes use the '-uu' option:
 
 `EvilClippy.exe -uu macrofile.doc`
 
-Note: You can remove the Locked/Unviewable attributes on files that were locked using other tools and methods as well.
+Note: You can remove the Locked/Unviewable attributes on files that were not locked with EvilClippy as well.
 
 ## Limitations
 
