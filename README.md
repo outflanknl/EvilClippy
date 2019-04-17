@@ -8,6 +8,7 @@ A cross-platform assistant for creating malicious MS Office documents. Can hide 
 * VBA stomping (P-code abuse)
 * Fool analyst tools
 * Serve VBA stomped templates via HTTP
+* Set/Remove VBA Project Locked/Unviewable Protection
 
 If you have no idea what all of this is, check out the following resources first:
 * [Our MS Office Magic Show presentation at Derbycon 2018](https://outflank.nl/blog/2018/10/28/recordings-of-our-derbycon-and-brucon-presentations/)
@@ -85,6 +86,18 @@ Service *macrofile.dot* via HTTP port 8080 after performing VBA stomping. If thi
 `EvilClippy.exe -s fakecode.vba -w 8080 macrofile.dot`
 
 Note: The file you are serving must be a template (.dot instead of .doc). You can set a template via a URL (.dot extension is not required!) from the developer toolbar in Word. Also, fakecode.vba must have a VB_Base attribute set for a macro from a template (this means that your facecode.vba must start with a line such as *Attribute VB_Base = "0{00020906-0000-0000-C000-000000000046}"*).
+
+**Set/Remove VBA Project Locked/Unviewable Protection**
+
+To set the Locked/Unviewable attributes use the '-u' option:
+
+`EvilClippy.exe -u macrofile.doc`
+
+To remove the Locked/Unviewable attributes use the '-uu' option:
+
+`EvilClippy.exe -uu macrofile.doc`
+
+Note: You can remove the Locked/Unviewable attributes on files that were not locked with EvilClippy as well.
 
 ## Limitations
 

@@ -22,6 +22,7 @@ using System.Net;
 using System.Threading;
 using System.IO;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 
 public class MSOfficeManipulator
 {
@@ -68,8 +69,14 @@ public class MSOfficeManipulator
 		// Option to set random module names in dir stream
 		bool optionSetRandomNames = false;
 
-		// Temp path to unzip OpenXML files to
-		String unzipTempPath = "";
+        // Option to set locked/unviewable options in Project Stream
+        bool optionUnviewableVBA = false;
+
+        // Option to set unlocked/viewable options in Project Stream
+        bool optionViewableVBA = false;
+
+        // Temp path to unzip OpenXML files to
+        String unzipTempPath = "";
 
 
 		// Start parsing command line arguments
@@ -89,7 +96,11 @@ public class MSOfficeManipulator
 				v => optionDeleteMetadata = v != null },
 			{ "r|randomnames", "Set random module names, confuses some analyst tools.",
 				v => optionSetRandomNames = v != null },
-			{ "v", "Increase debug message verbosity.",
+            { "u|unviewableVBA", "Make VBA Project unviewable/locked.",
+                v => optionUnviewableVBA = v != null },
+            { "uu|viewableVBA", "Make VBA Project viewable/unlocked.",
+                v => optionViewableVBA = v != null },
+            { "v", "Increase debug message verbosity.",
 				v => { if (v != null) ++verbosity; } },
 			{ "h|help",  "Show this message and exit.",
 				v => optionShowHelp = v != null },
@@ -183,8 +194,30 @@ public class MSOfficeManipulator
 			commonStorage.GetStorage("VBA").GetStream("_VBA_PROJECT").SetData(vbaProjectStream);
 		}
 
-		// Hide modules from GUI
-		if (optionHideInGUI)
+        //Set ProjectProtectionState and ProjectVisibilityState to locked/unviewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
+        if (optionUnviewableVBA)
+        {
+            string tmpStr = Regex.Replace(projectStreamString, "CMG=\".*\"", "CMG=\"\"");
+            string newProjectStreamString = Regex.Replace(tmpStr, "GC=\".*\"", "GC=\"\"");
+            // Write changes to project stream
+            commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
+        }
+
+        //Set ProjectProtectionState and ProjectVisibilityState to be viewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
+        if (optionViewableVBA)
+        {
+            string tmpStr0 = Regex.Replace(projectStreamString, "CMG=\".*\"", "CMG=\"CAC866BE34C234C230C630C6\"");
+            string tmpStr1 = Regex.Replace(tmpStr0, "ID=\".*\"", "ID=\"{00000000-0000-0000-0000-000000000000}\"");
+            string tmpStr = Regex.Replace(tmpStr1, "DPB=\".*\"", "DPB=\"94963888C84FE54FE5B01B50E59251526FE67A1CC76C84ED0DAD653FD058F324BFD9D38DED37\"");
+            string newProjectStreamString = Regex.Replace(tmpStr, "GC=\".*\"", "GC=\"5E5CF2C27646414741474\"");
+
+            // Write changes to project stream
+            commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
+        }
+
+
+        // Hide modules from GUI
+        if (optionHideInGUI)
 		{
 			foreach (var vbaModule in vbaModules)
 			{
@@ -245,6 +278,7 @@ public class MSOfficeManipulator
 				}
 			}
 		}
+
 
 		// Set random ASCII names for VBA modules in dir stream
 		if (optionSetRandomNames)
