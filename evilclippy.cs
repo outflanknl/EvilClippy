@@ -455,10 +455,18 @@ public class MSOfficeManipulator
 				version[0] = 0xAF;
 				version[1] = 0x00;
 				break;
-                        case "2016x64":
-                                version[0] = 0xB2;
-                                version[1] = 0x00;
-                                break;
+			case "2013x64":
+				version[0] = 0xA6;
+				version[1] = 0x00;
+				break;
+			case "2016x64":
+				version[0] = 0xB2;
+				version[1] = 0x00;
+				break;				
+			case "2019x64":
+				version[0] = 0xB2;
+				version[1] = 0x00;
+				break;				
 			default:
 				Console.WriteLine("ERROR: Incorrect MS Office version specified - skipping this step.");
 				return moduleStream;
