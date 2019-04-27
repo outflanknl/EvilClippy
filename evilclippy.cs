@@ -32,6 +32,9 @@ public class MSOfficeManipulator
 	// Filename of the document that is about to be manipulated
 	static string filename = "";
 
+        // Name of the generated output file.
+        static string outFilename = "";
+    
 	// Compound file that is under editing
 	static CompoundFile cf;
 
@@ -135,7 +138,7 @@ public class MSOfficeManipulator
 		// End parsing command line arguments
 
 		// OLE Filename (make a copy so we don't overwrite the original)
-		string outFilename = getOutFilename(filename);
+		outFilename = getOutFilename(filename);
 		string oleFilename = outFilename;
 
 		// Attempt to unzip as docm or xlsm OpenXML format
@@ -358,8 +361,19 @@ public class MSOfficeManipulator
 	{
 		Console.WriteLine("Serving request from " + request.RemoteEndPoint.ToString() + " with user agent " + request.UserAgent);
 
-		CompoundFile cf = new CompoundFile(filename, CFSUpdateMode.Update, 0);
-
+                CompoundFile cf = null;
+                try
+                {
+                    cf = new CompoundFile(outFilename, CFSUpdateMode.Update, 0);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("ERROR: Could not open file " + outFilename);
+                    Console.WriteLine("Please make sure this file exists and is .docm or .xlsm file or a .doc in the Office 97-2003 format.");
+                    Console.WriteLine();
+                    Console.WriteLine(e.Message);
+                }
+                
 		CFStream streamData = cf.RootStorage.GetStorage("Macros").GetStorage("VBA").GetStream("_VBA_PROJECT");
 		byte[] streamBytes = streamData.GetData();
 
@@ -373,7 +387,8 @@ public class MSOfficeManipulator
 		cf.Commit();
 		cf.Close();
 
-		return File.ReadAllBytes(filename);
+                Console.WriteLine("Serving out file '" + outFilename + "'");
+		return File.ReadAllBytes(outFilename);
 	}
 
 	static string UserAgentToOfficeVersion(string userAgent)
@@ -440,6 +455,10 @@ public class MSOfficeManipulator
 				version[0] = 0xAF;
 				version[1] = 0x00;
 				break;
+                        case "2016x64":
+                                version[0] = 0xB2;
+                                version[1] = 0x00;
+                                break;
 			default:
 				Console.WriteLine("ERROR: Incorrect MS Office version specified - skipping this step.");
 				return moduleStream;
