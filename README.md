@@ -54,11 +54,15 @@ Now run Evil Clippy from the command line:
 
 `EvilClippy.exe -h`
 
-**Hide macros from GUI**
+**Hide/Unhide macros from GUI**
 
 Hide all macro modules (except the default "ThisDocument" module) from the VBA GUI editor. This is achieved by removing module lines from the project stream [MS-OVBA 2.3.1].
 
 `EvilClippy.exe -g macrofile.doc`
+
+Undo the changes done by the hide option (-g) so that we can debug the macro in the VBA IDE.
+
+`EvilClippy.exe -gg macrofile.doc`
 
 **Stomp VBA (abuse P-code)**
 
