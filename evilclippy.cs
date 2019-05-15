@@ -96,7 +96,7 @@ public class MSOfficeManipulator
 				v => VBASourceFileName = v },
 			{ "g|guihide", "Hide code from VBA editor GUI.",
 				v => optionHideInGUI = v != null },
-			{ "gg|guiunhide", "Hide code from VBA editor GUI.",
+			{ "gg|guiunhide", "Unhide code from VBA editor GUI.",
 				v => optionUnhideInGUI = v != null },
 			{ "t|targetversion=", "Target MS Office version the pcode will run on.",
 				v => targetOfficeVersion = v },
