@@ -23,6 +23,7 @@ using System.Threading;
 using System.IO;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
+using System.Collections;
 
 public class MSOfficeManipulator
 {
@@ -42,6 +43,7 @@ public class MSOfficeManipulator
 	static byte[] vbaProjectStream;
 	static byte[] dirStream;
 	static byte[] projectStream;
+	static byte[] projectwmStream;
 
 	static public void Main(string[] args)
 	{
@@ -56,6 +58,9 @@ public class MSOfficeManipulator
 
 		// Option to hide modules from VBA editor GUI
 		bool optionHideInGUI = false;
+
+		// Option to unhide modules from VBA editor GUI
+		bool optionUnhideInGUI = false;
 
 		// Option to start web server to serve malicious template
 		int optionWebserverPort = 0;
@@ -91,6 +96,8 @@ public class MSOfficeManipulator
 				v => VBASourceFileName = v },
 			{ "g|guihide", "Hide code from VBA editor GUI.",
 				v => optionHideInGUI = v != null },
+			{ "gg|guiunhide", "Unhide code from VBA editor GUI.",
+				v => optionUnhideInGUI = v != null },
 			{ "t|targetversion=", "Target MS Office version the pcode will run on.",
 				v => targetOfficeVersion = v },
 			{ "w|webserver=", "Start web server on specified port to serve malicious template.",
@@ -177,10 +184,12 @@ public class MSOfficeManipulator
 		if (cf.RootStorage.TryGetStorage("_VBA_PROJECT_CUR") != null) commonStorage = cf.RootStorage.GetStorage("_VBA_PROJECT_CUR"); // xls		
 		vbaProjectStream = commonStorage.GetStorage("VBA").GetStream("_VBA_PROJECT").GetData();
 		projectStream = commonStorage.GetStream("project").GetData();
+		projectwmStream = commonStorage.GetStream("projectwm").GetData();
 		dirStream = Decompress(commonStorage.GetStorage("VBA").GetStream("dir").GetData());
 
-		// Read project stream as string
+		// Read project streams as string
 		string projectStreamString = System.Text.Encoding.UTF8.GetString(projectStream);
+		string projectwmStreamString = System.Text.Encoding.UTF8.GetString(projectwmStream);
 
 		// Find all VBA modules in current file
 		List<ModuleInformation> vbaModules = ParseModulesFromDirStream(dirStream);
@@ -232,6 +241,23 @@ public class MSOfficeManipulator
 			}
 
 			// Write changes to project stream
+			commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
+		}
+
+		// Undo the Hide modules from GUI effects
+		if (optionUnhideInGUI)
+		{
+			ArrayList vbaModulesNamesFromProjectwm = getModulesNamesFromProjectwmStream(projectwmStreamString);
+
+			foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
+			{
+				Console.WriteLine("Unhiding module: " + vbaModuleName);
+				int index = projectStreamString.IndexOf("\r\n\r\n") + 2;
+				projectStreamString = projectStreamString.Insert(index, "Module=" + vbaModuleName);
+
+			}
+
+			// write changes to project stream
 			commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
 		}
 
@@ -340,6 +366,24 @@ public class MSOfficeManipulator
 				DebugLog(e.Message);
 			}
 		}
+	}
+
+	private static ArrayList getModulesNamesFromProjectwmStream(string projectwmStreamString)
+	{
+		ArrayList vbaModulesNamesFromProjectwm = new ArrayList();
+		int beginIndex = 0;
+		int startIndex = 0;
+
+		while (true)
+		{
+			startIndex = projectwmStreamString.IndexOf("\0\0\0", beginIndex); if (startIndex == -1) break;
+			startIndex = startIndex + 3;
+			int endIndex = projectwmStreamString.IndexOf("\0", startIndex); if (endIndex == projectwmStreamString.Length - 2) break;
+			vbaModulesNamesFromProjectwm.Add(projectwmStreamString.Substring(startIndex, endIndex - startIndex));
+			beginIndex = endIndex;
+		}
+
+		return vbaModulesNamesFromProjectwm;
 	}
 
 	public static string getOutFilename(String filename)
