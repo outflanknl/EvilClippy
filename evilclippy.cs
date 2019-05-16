@@ -250,18 +250,25 @@ public class MSOfficeManipulator
 			ArrayList vbaModulesNamesFromProjectwm = getModulesNamesFromProjectwmStream(projectwmStreamString);
 			Regex theregex = new Regex(@"(Document\=.*\/.{10})([\S\s]*?)(ExeName32\=|Name\=|ID\=|Class\=|BaseClass\=|Package\=|HelpFile\=|HelpContextID\=|Description\=|VersionCompatible32\=|CMG\=|DPB\=|GC\=)");
 			Match m = theregex.Match(projectStreamString);
-			string moduleString = "\r\n";
-
-			foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
+			if (m.Groups.Count != 4)
 			{
-				Console.WriteLine("Unhiding module: " + vbaModuleName);
-				moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+				Console.WriteLine("Error, could not find the location to insert module names. Not able to unhide modules");
 			}
+			else
+			{
+				string moduleString = "\r\n";
 
-			projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
+				foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
+				{
+					Console.WriteLine("Unhiding module: " + vbaModuleName);
+					moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+				}
 
-			// write changes to project stream
-			commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
+				projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
+
+				// write changes to project stream
+				commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
+			}
 		}
 
 		// Stomp VBA modules
@@ -374,16 +381,12 @@ public class MSOfficeManipulator
 	private static ArrayList getModulesNamesFromProjectwmStream(string projectwmStreamString)
 	{
 		ArrayList vbaModulesNamesFromProjectwm = new ArrayList();
-		int beginIndex = 0;
-		int startIndex = 0;
+		Regex theregex = new Regex(@"(?<=\0{3})([^\0]+?)(?=\0)");
+		MatchCollection matches = theregex.Matches(projectwmStreamString);
 
-		while (true)
+		foreach (Match match in matches)
 		{
-			startIndex = projectwmStreamString.IndexOf("\0\0\0", beginIndex); if (startIndex == -1) break;
-			startIndex = startIndex + 3;
-			int endIndex = projectwmStreamString.IndexOf("\0", startIndex); if (endIndex == projectwmStreamString.Length - 2) break;
-			vbaModulesNamesFromProjectwm.Add(projectwmStreamString.Substring(startIndex, endIndex - startIndex));
-			beginIndex = endIndex;
+			vbaModulesNamesFromProjectwm.Add(match.Value);
 		}
 
 		return vbaModulesNamesFromProjectwm;
