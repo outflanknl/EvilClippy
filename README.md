@@ -84,11 +84,11 @@ Set random ASCII module names in the dir stream [MS-OVBA 2.3.4.2]. This abuses a
 
 `EvilClippy.exe -r macrofile.doc`
 
+Note: this is known to be effective in tricking pcodedmp and VirusTotal
+
 Set ASCII module names in the dir stream to match their Unicode counterparts. This reverses the changes made using the (-r) optoin of EvilClippy
 
 `EvilClippy.exe -rr macrofile.doc`
-
-Note: this is known to be effective in tricking pcodedmp and VirusTotal
 
 **Serve a VBA stomped template via HTTP**
 
