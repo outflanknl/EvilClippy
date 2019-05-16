@@ -248,14 +248,17 @@ public class MSOfficeManipulator
 		if (optionUnhideInGUI)
 		{
 			ArrayList vbaModulesNamesFromProjectwm = getModulesNamesFromProjectwmStream(projectwmStreamString);
+			Regex theregex = new Regex(@"(Document\=.*\/.{10})([\S\s]*?)(ExeName32\=|Name\=|ID\=|Class\=|BaseClass\=|Package\=|HelpFile\=|HelpContextID\=|Description\=|VersionCompatible32\=|CMG\=|DPB\=|GC\=)");
+			Match m = theregex.Match(projectStreamString);
+			string moduleString = "\r\n";
 
 			foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
 			{
 				Console.WriteLine("Unhiding module: " + vbaModuleName);
-				int index = projectStreamString.IndexOf("\r\n\r\n") + 2;
-				projectStreamString = projectStreamString.Insert(index, "Module=" + vbaModuleName);
-
+				moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
 			}
+
+			projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
 
 			// write changes to project stream
 			commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
