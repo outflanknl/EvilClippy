@@ -77,8 +77,11 @@ public class MSOfficeManipulator
 		// Option to set random module names in dir stream
 		bool optionSetRandomNames = false;
 
-        // Option to set locked/unviewable options in Project Stream
-        bool optionUnviewableVBA = false;
+		// Option to reset module names in dir stream (undo SetRandomNames option)
+		bool optionResetModuleNames = false;
+
+		// Option to set locked/unviewable options in Project Stream
+		bool optionUnviewableVBA = false;
 
         // Option to set unlocked/viewable options in Project Stream
         bool optionViewableVBA = false;
@@ -106,7 +109,9 @@ public class MSOfficeManipulator
 				v => optionDeleteMetadata = v != null },
 			{ "r|randomnames", "Set random module names, confuses some analyst tools.",
 				v => optionSetRandomNames = v != null },
-            { "u|unviewableVBA", "Make VBA Project unviewable/locked.",
+			{ "rr|resetmodulenames", "Undo the set random module names by making the ASCII module names in the DIR stream match their Unicode counter parts",
+				v => optionResetModuleNames = v != null },
+			{ "u|unviewableVBA", "Make VBA Project unviewable/locked.",
                 v => optionUnviewableVBA = v != null },
             { "uu|viewableVBA", "Make VBA Project viewable/unlocked.",
                 v => optionViewableVBA = v != null },
@@ -326,6 +331,15 @@ public class MSOfficeManipulator
 
 			// Recompress and write to dir stream
 			commonStorage.GetStorage("VBA").GetStream("dir").SetData(Compress(SetRandomNamesInDirStream(dirStream)));
+		}
+
+		// Reset module names in dir stream so that the ASCII names match the Unicode names (undo SetRandomNames option)
+		if (optionResetModuleNames)
+		{
+			Console.WriteLine("Resetting module names in dir stream to match names is _VBA_PROJECT stream (undo SetRandomNames option)");
+
+			// Recompress and write to dir stream
+			commonStorage.GetStorage("VBA").GetStream("dir").SetData(Compress(ResetModuleNamesInDirStream(dirStream)));
 		}
 
 		// Delete metadata from document
@@ -569,6 +583,49 @@ public class MSOfficeManipulator
 					System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
 					encoding.GetBytes(Utils.RandomString((int)wLength), 0, (int)wLength, dirStream, (int)offset + 6);
 
+					break;
+			}
+
+			offset += 6;
+			offset += (int)wLength;
+		}
+
+		return dirStream;
+	}
+
+	private static byte[] ResetModuleNamesInDirStream(byte[] dirStream)
+	{
+		// 2.3.4.2 dir Stream: Version Independent Project Information
+		// https://msdn.microsoft.com/en-us/library/dd906362(v=office.12).aspx
+		// Dir stream is ALWAYS in little endian
+
+		int offset = 0;
+		UInt16 tag;
+		UInt32 wLength;
+
+		while (offset < dirStream.Length)
+		{
+			tag = GetWord(dirStream, offset);
+			wLength = GetDoubleWord(dirStream, offset + 2);
+
+			// The following idiocy is because Microsoft can't stick to their own format specification - taken from Pcodedmp
+			if (tag == 9)
+				wLength = 6;
+			else if (tag == 3)
+				wLength = 2;
+
+			switch (tag)
+			{
+				case 26: // 2.3.4.2.3.2.3 MODULESTREAMNAME Record
+					System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
+					UInt32 wLengthOrig = wLength;
+					int offsetOrig = offset;
+					offset += 6;
+					offset += (int)wLength;
+					tag = GetWord(dirStream, offset);
+					wLength = GetDoubleWord(dirStream, offset + 2);
+					string moduleNameFromUnicode = System.Text.Encoding.Unicode.GetString(dirStream.Skip(offset + 6).Take((int)wLength).ToArray());
+					encoding.GetBytes(moduleNameFromUnicode, 0, (int)wLengthOrig, dirStream, (int)offsetOrig + 6);
 					break;
 			}
 
