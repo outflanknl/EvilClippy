@@ -77,8 +77,11 @@ public class MSOfficeManipulator
 		// Option to set random module names in dir stream
 		bool optionSetRandomNames = false;
 
-        // Option to set locked/unviewable options in Project Stream
-        bool optionUnviewableVBA = false;
+		// Option to reset module names in dir stream (undo SetRandomNames option)
+		bool optionResetModuleNames = false;
+
+		// Option to set locked/unviewable options in Project Stream
+		bool optionUnviewableVBA = false;
 
         // Option to set unlocked/viewable options in Project Stream
         bool optionViewableVBA = false;
@@ -106,7 +109,9 @@ public class MSOfficeManipulator
 				v => optionDeleteMetadata = v != null },
 			{ "r|randomnames", "Set random module names, confuses some analyst tools.",
 				v => optionSetRandomNames = v != null },
-            { "u|unviewableVBA", "Make VBA Project unviewable/locked.",
+			{ "rr|resetmodulenames", "Undo the set random module names by making the ASCII module names in the DIR stream match their Unicode counter parts",
+				v => optionResetModuleNames = v != null },
+			{ "u|unviewableVBA", "Make VBA Project unviewable/locked.",
                 v => optionUnviewableVBA = v != null },
             { "uu|viewableVBA", "Make VBA Project viewable/unlocked.",
                 v => optionViewableVBA = v != null },
@@ -248,17 +253,27 @@ public class MSOfficeManipulator
 		if (optionUnhideInGUI)
 		{
 			ArrayList vbaModulesNamesFromProjectwm = getModulesNamesFromProjectwmStream(projectwmStreamString);
-
-			foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
+			Regex theregex = new Regex(@"(Document\=.*\/.{10})([\S\s]*?)(ExeName32\=|Name\=|ID\=|Class\=|BaseClass\=|Package\=|HelpFile\=|HelpContextID\=|Description\=|VersionCompatible32\=|CMG\=|DPB\=|GC\=)");
+			Match m = theregex.Match(projectStreamString);
+			if (m.Groups.Count != 4)
 			{
-				Console.WriteLine("Unhiding module: " + vbaModuleName);
-				int index = projectStreamString.IndexOf("\r\n\r\n") + 2;
-				projectStreamString = projectStreamString.Insert(index, "Module=" + vbaModuleName);
-
+				Console.WriteLine("Error, could not find the location to insert module names. Not able to unhide modules");
 			}
+			else
+			{
+				string moduleString = "\r\n";
 
-			// write changes to project stream
-			commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
+				foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
+				{
+					Console.WriteLine("Unhiding module: " + vbaModuleName);
+					moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+				}
+
+				projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
+
+				// write changes to project stream
+				commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
+			}
 		}
 
 		// Stomp VBA modules
@@ -318,6 +333,15 @@ public class MSOfficeManipulator
 			commonStorage.GetStorage("VBA").GetStream("dir").SetData(Compress(SetRandomNamesInDirStream(dirStream)));
 		}
 
+		// Reset module names in dir stream so that the ASCII names match the Unicode names (undo SetRandomNames option)
+		if (optionResetModuleNames)
+		{
+			Console.WriteLine("Resetting module names in dir stream to match names is _VBA_PROJECT stream (undo SetRandomNames option)");
+
+			// Recompress and write to dir stream
+			commonStorage.GetStorage("VBA").GetStream("dir").SetData(Compress(ResetModuleNamesInDirStream(dirStream)));
+		}
+
 		// Delete metadata from document
 		if (optionDeleteMetadata)
 		{
@@ -371,16 +395,12 @@ public class MSOfficeManipulator
 	private static ArrayList getModulesNamesFromProjectwmStream(string projectwmStreamString)
 	{
 		ArrayList vbaModulesNamesFromProjectwm = new ArrayList();
-		int beginIndex = 0;
-		int startIndex = 0;
+		Regex theregex = new Regex(@"(?<=\0{3})([^\0]+?)(?=\0)");
+		MatchCollection matches = theregex.Matches(projectwmStreamString);
 
-		while (true)
+		foreach (Match match in matches)
 		{
-			startIndex = projectwmStreamString.IndexOf("\0\0\0", beginIndex); if (startIndex == -1) break;
-			startIndex = startIndex + 3;
-			int endIndex = projectwmStreamString.IndexOf("\0", startIndex); if (endIndex == projectwmStreamString.Length - 2) break;
-			vbaModulesNamesFromProjectwm.Add(projectwmStreamString.Substring(startIndex, endIndex - startIndex));
-			beginIndex = endIndex;
+			vbaModulesNamesFromProjectwm.Add(match.Value);
 		}
 
 		return vbaModulesNamesFromProjectwm;
@@ -563,6 +583,49 @@ public class MSOfficeManipulator
 					System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
 					encoding.GetBytes(Utils.RandomString((int)wLength), 0, (int)wLength, dirStream, (int)offset + 6);
 
+					break;
+			}
+
+			offset += 6;
+			offset += (int)wLength;
+		}
+
+		return dirStream;
+	}
+
+	private static byte[] ResetModuleNamesInDirStream(byte[] dirStream)
+	{
+		// 2.3.4.2 dir Stream: Version Independent Project Information
+		// https://msdn.microsoft.com/en-us/library/dd906362(v=office.12).aspx
+		// Dir stream is ALWAYS in little endian
+
+		int offset = 0;
+		UInt16 tag;
+		UInt32 wLength;
+
+		while (offset < dirStream.Length)
+		{
+			tag = GetWord(dirStream, offset);
+			wLength = GetDoubleWord(dirStream, offset + 2);
+
+			// The following idiocy is because Microsoft can't stick to their own format specification - taken from Pcodedmp
+			if (tag == 9)
+				wLength = 6;
+			else if (tag == 3)
+				wLength = 2;
+
+			switch (tag)
+			{
+				case 26: // 2.3.4.2.3.2.3 MODULESTREAMNAME Record
+					System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
+					UInt32 wLengthOrig = wLength;
+					int offsetOrig = offset;
+					offset += 6;
+					offset += (int)wLength;
+					tag = GetWord(dirStream, offset);
+					wLength = GetDoubleWord(dirStream, offset + 2);
+					string moduleNameFromUnicode = System.Text.Encoding.Unicode.GetString(dirStream.Skip(offset + 6).Take((int)wLength).ToArray());
+					encoding.GetBytes(moduleNameFromUnicode, 0, (int)wLengthOrig, dirStream, (int)offsetOrig + 6);
 					break;
 			}
 

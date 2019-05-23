@@ -78,13 +78,17 @@ Same as the above, but now explicitly targeting Word 2016 on x86. This means tha
 
 `EvilClippy.exe -s fakecode.vba -t 2016x86 macrofile.doc`
 
-**Set random module names (fool analyst tools)**
+**Set/reset random module names (fool analyst tools)**
 
 Set random ASCII module names in the dir stream [MS-OVBA 2.3.4.2]. This abuses ambiguity in the MODULESTREAMNAME records [MS-OVBA 2.3.4.2.3.2.3] - most analyst tools use the ASCII module names specified here, while MS Office used the Unicode variant. By setting a random ASCII module name most P-code and VBA analysis tools crash, while the actual P-code and VBA still runs fine in Word and Excel.
 
 `EvilClippy.exe -r macrofile.doc`
 
 Note: this is known to be effective in tricking pcodedmp and VirusTotal
+
+Set ASCII module names in the dir stream to match their Unicode counterparts. This reverses the changes made using the (-r) optoin of EvilClippy
+
+`EvilClippy.exe -rr macrofile.doc`
 
 **Serve a VBA stomped template via HTTP**
 
