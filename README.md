@@ -6,6 +6,8 @@ A cross-platform assistant for creating malicious MS Office documents. Can hide 
 If you're new to this tool, you might want to start by reading our blog post on Evil Clippy:
 https://outflank.nl/blog/2019/05/05/evil-clippy-ms-office-maldoc-assistant/
 
+This project should be used for authorized testing or educational purposes only.
+
 ## Current features
 * Hide VBA macros from the GUI editor
 * VBA stomping (P-code abuse)
