@@ -1,4 +1,4 @@
-This tool was released during our BlackHat Asia talk (March 28, 2019). A video recording will be online in 90 days.
+This tool was released during our BlackHat Asia talk (March 28, 2019). A video recording of this talk is available at https://www.youtube.com/watch?v=9ULzZA70Dzg
 
 # Evil Clippy
 A cross-platform assistant for creating malicious MS Office documents. Can hide VBA macros, stomp VBA code (via P-Code) and confuse macro analysis tools. Runs on Linux, OSX and Windows.
