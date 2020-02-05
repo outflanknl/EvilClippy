@@ -21,7 +21,7 @@ If you have no idea what all of this is, check out the following resources first
 * [Pcodedmp by Dr. Bontchev](https://github.com/bontchev/pcodedmp)
 
 ## How effective is this?
-At the time of writing, this tool is capable of getting a default Cobalt Strike macro to bypass ~~all~~ most major antivirus products and most maldoc analysis tools (by using VBA stomping in combination with random module names).
+At the time of writing, this tool is capable of getting a default Cobalt Strike macro to bypass most major antivirus products and various maldoc analysis tools (by using VBA stomping in combination with random module names).
 
 ## Technology
 Evil Clippy uses the [OpenMCDF library](https://github.com/ironfede/openmcdf/) to manipulate MS Office Compound File Binary Format (CFBF) files, and hereto abuses [MS-OVBA specifications](https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/) and features. It reuses code from [Kavod.VBA.Compression](https://github.com/rossknudsen/Kavod.Vba.Compression) to implement the compression algorithm that is used in dir and module streams (see MS-OVBA for relevant specifications).
