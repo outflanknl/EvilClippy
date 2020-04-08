@@ -222,15 +222,15 @@ public class MSOfficeManipulator
         //Set ProjectProtectionState and ProjectVisibilityState to be viewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
         if (optionViewableVBA)
         {
-					Console.WriteLine("Making the project visible...");
-					// Console.WriteLine("Stream before: " + projectStreamString);					
-					string tmpStr = projectStreamString;
-								 tmpStr = Regex.Replace(tmpStr, "CMG=\"?.*\"?", "CMG=\"CAC866BE34C234C230C630C6\"");
-								 tmpStr = Regex.Replace(tmpStr,  "ID=\"?.*\"?", "ID=\"{00000000-0000-0000-0000-000000000000}\"");
-								 tmpStr = Regex.Replace(tmpStr, "DPB=\"?.*\"?", "DPB=\"94963888C84FE54FE5B01B50E59251526FE67A1CC76C84ED0DAD653FD058F324BFD9D38DED37\"");
-								 tmpStr = Regex.Replace(tmpStr,  "GC=\"?.*\"?", "GC=\"5E5CF2C27646414741474\"");
-					string newProjectStreamString = tmpStr;
-					// Console.WriteLine("Stream afterw: " + newProjectStreamString);					
+			Console.WriteLine("Making the project visible...");
+			// Console.WriteLine("Stream before: " + projectStreamString);					
+			string tmpStr = projectStreamString;
+		    	   tmpStr = Regex.Replace(tmpStr, "CMG=\"?.*\"?", "CMG=\"CAC866BE34C234C230C630C6\"");
+		       	   tmpStr = Regex.Replace(tmpStr,  "ID=\"?.*\"?", "ID=\"{00000000-0000-0000-0000-000000000000}\"");
+		       	   tmpStr = Regex.Replace(tmpStr, "DPB=\"?.*\"?", "DPB=\"94963888C84FE54FE5B01B50E59251526FE67A1CC76C84ED0DAD653FD058F324BFD9D38DED37\"");
+		           tmpStr = Regex.Replace(tmpStr,  "GC=\"?.*\"?", "GC=\"5E5CF2C27646414741474\"");
+			string newProjectStreamString = tmpStr;
+			// Console.WriteLine("Stream afterw: " + newProjectStreamString);					
 
             // Write changes to project stream
             commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
