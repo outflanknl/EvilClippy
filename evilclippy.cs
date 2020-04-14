@@ -2,8 +2,8 @@
 // Cross-platform CFBF and MS-OVBA manipulation assistant
 //
 // Author: Stan Hegt (@StanHacked) / Outflank
-// Date: 20190330
-// Version: 1.1 (added support for xls, xlsm and docm)
+// Date: 20200415
+// Version: 1.3 (added GUI unhide option)
 //
 // Special thanks to Carrie Robberts (@OrOneEqualsOne) from Walmart for her contributions to this project.
 //
