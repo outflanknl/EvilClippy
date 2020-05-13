@@ -523,6 +523,10 @@ public class MSOfficeManipulator
 				version[0] = 0xAF;
 				version[1] = 0x00;
 				break;
+			case "2019x86":
+				version[0] = 0xAF;
+				version[1] = 0x00;
+				break;
 			case "2013x64":
 				version[0] = 0xA6;
 				version[1] = 0x00;
