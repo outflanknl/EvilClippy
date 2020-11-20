@@ -5,7 +5,7 @@
 // Date: 20200415
 // Version: 1.3 (added GUI unhide option)
 //
-// Special thanks to Carrie Robberts (@OrOneEqualsOne) from Walmart for her contributions to this project.
+// Special thanks to Carrie Roberts (@OrOneEqualsOne) from Walmart for her contributions to this project.
 //
 // Compilation instructions
 // Mono: mcs /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs 
