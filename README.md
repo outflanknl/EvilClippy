@@ -33,6 +33,7 @@ Evil Clippy compiles perfectly fine with the Mono C# compiler and has been teste
 We do not provide a binary release for EvilClippy. Please compile executables yourself:
 
 **OSX and Linux**
+
 Make sure you have Mono installed. Then execute the following command from the command line:
 
 `mcs /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs`
@@ -42,6 +43,7 @@ Now run Evil Clippy from the command line:
 `mono EvilClippy.exe -h`
 
 **Windows**
+
 Make sure you have Visual Studio installed. Then execute the following command from a Visual Studio developer command prompt:
 
 `csc /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs`
