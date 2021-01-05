@@ -30,8 +30,6 @@ Evil Clippy compiles perfectly fine with the Mono C# compiler and has been teste
 
 ## Compilation
 
-**A cross-platform compiled binary can be found under "releases".**
-
 **OSX and Linux**
 Make sure you have Mono installed. Then execute the following command from the command line:
 
