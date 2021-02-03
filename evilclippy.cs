@@ -5,7 +5,7 @@
 // Date: 20200415
 // Version: 1.3 (added GUI unhide option)
 //
-// Special thanks to Carrie Roberts (@OrOneEqualsOne) from Walmart for her contributions to this project.
+// Special thanks to Carrie Robberts (@OrOneEqualsOne) from Walmart for her contributions to this project.
 //
 // Compilation instructions
 // Mono: mcs /reference:OpenMcdf.dll,System.IO.Compression.FileSystem.dll /out:EvilClippy.exe *.cs 
@@ -445,7 +445,14 @@ public class MSOfficeManipulator
 		CFStream streamData = cf.RootStorage.GetStorage("Macros").GetStorage("VBA").GetStream("_VBA_PROJECT");
 		byte[] streamBytes = streamData.GetData();
 
-		string targetOfficeVersion = UserAgentToOfficeVersion(request.UserAgent);
+		string UACpu = "";
+		if (request.Headers["UA-CPU"] != null)
+        {
+			UACpu = request.Headers["UA-CPU"];
+
+		}
+
+		string targetOfficeVersion = UserAgentToOfficeVersion(request.UserAgent, UACpu);
 
 		ReplaceOfficeVersionInVBAProject(streamBytes, targetOfficeVersion);
 
@@ -459,7 +466,7 @@ public class MSOfficeManipulator
 		return File.ReadAllBytes(outFilename);
 	}
 
-	static string UserAgentToOfficeVersion(string userAgent)
+	static string UserAgentToOfficeVersion(string userAgent, string UACpu)
 	{
 		string officeVersion = "";
 
@@ -472,7 +479,7 @@ public class MSOfficeManipulator
 			officeVersion = "unknown";
 
 		// Determine architecture
-		if (userAgent.Contains("x64") || userAgent.Contains("Win64"))
+		if (userAgent.Contains("x64") || userAgent.Contains("Win64") || UACpu.Contains("64"))
 			officeVersion += "x64";
 		else
 			officeVersion += "x86";
@@ -520,10 +527,6 @@ public class MSOfficeManipulator
 				version[1] = 0x00;
 				break;
 			case "2016x86":
-				version[0] = 0xAF;
-				version[1] = 0x00;
-				break;
-			case "2019x86":
 				version[0] = 0xAF;
 				version[1] = 0x00;
 				break;
