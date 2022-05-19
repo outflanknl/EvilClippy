@@ -381,10 +381,21 @@ public class MSOfficeManipulator
 		{
 			foreach (var vbaModule in vbaModules)
 			{
-				if ((vbaModule.moduleName != "ThisDocument") && (vbaModule.moduleName != "ThisWorkbook"))
+				if (targetModules.Count > 0)
 				{
-					Console.WriteLine("Hiding module: " + vbaModule.moduleName);
-					projectStreamString = projectStreamString.Replace("Module=" + vbaModule.moduleName, "");
+					if (targetModules.Contains(vbaModule.moduleName) || !targetModules.Any())
+					{
+						Console.WriteLine("Hiding module: " + vbaModule.moduleName);
+						projectStreamString = projectStreamString.Replace("Module=" + vbaModule.moduleName, "");
+					}
+				}
+				else
+				{
+				    if ((vbaModule.moduleName != "ThisDocument") && (vbaModule.moduleName != "ThisWorkbook"))
+					{
+						Console.WriteLine("Hiding module: " + vbaModule.moduleName);
+						projectStreamString = projectStreamString.Replace("Module=" + vbaModule.moduleName, "");
+					}
 				}
 			}
 
@@ -410,8 +421,19 @@ public class MSOfficeManipulator
 
 					foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
 					{
-						Console.WriteLine("Unhiding module: " + vbaModuleName);
-						moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+                        if (targetModules.Count > 0)
+                        {
+                            if (targetModules.Contains(vbaModuleName) || !targetModules.Any())
+                            {
+                                Console.WriteLine("Unhiding module: " + vbaModuleName);
+                                moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+							}
+                        }
+                        else
+                        {
+                            Console.WriteLine("Unhiding module: " + vbaModuleName);
+                            moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+						}
 					}
 
 					projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
@@ -436,7 +458,7 @@ public class MSOfficeManipulator
 				DebugLog("VBA module name: " + vbaModule.moduleName + "\nOffset for code: " + vbaModule.textOffset);
 
 				// If this module is a target module, or if no targets are specified, then stomp
-				if (targetModules.Contains(vbaModule.moduleName) || !targetModules.Any())
+				if ((targetModules.Count > 0 && targetModules.Contains(vbaModule.moduleName) ) || !targetModules.Any())
 				{
 					Console.WriteLine("Now stomping VBA code in module: " + vbaModule.moduleName);
 
