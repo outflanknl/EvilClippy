@@ -1,4 +1,4 @@
-// EvilClippy 
+﻿// EvilClippy 
 // Cross-platform CFBF and MS-OVBA manipulation assistant
 //
 // Author: Stan Hegt (@StanHacked) / Outflank
@@ -33,19 +33,24 @@ public class MSOfficeManipulator
 	// Filename of the document that is about to be manipulated
 	static string filename = "";
 
-        // Name of the generated output file.
-        static string outFilename = "";
-    
-	// Compound file that is under editing
-	static CompoundFile cf;
+	// Name of the generated output file.
+	static string outFilename = "";
+
+	static CFStorage vbaProjectCurStorage;
+	static CFStorage macrosStorage;
 
 	// Byte arrays for holding stream data of file
-	static byte[] vbaProjectStream;
-	static byte[] dirStream;
-	static byte[] projectStream;
-	static byte[] projectwmStream;
+	static CFStream vbaProjectStream;
+	static CFStream dirStream;
+	static CFStream projectStream;
+	static CFStream projectwmStream;
 
-	static public void Main(string[] args)
+    static byte[] vbaProjectStreamBytes;
+    static byte[] dirStreamBytes;
+    static byte[] projectStreamBytes;
+    static byte[] projectwmStreamBytes;
+
+    static public void Main(string[] args)
 	{
 		// List of target VBA modules to stomp, if empty => all modules will be stomped
 		List<string> targetModules = new List<string>();
@@ -83,11 +88,11 @@ public class MSOfficeManipulator
 		// Option to set locked/unviewable options in Project Stream
 		bool optionUnviewableVBA = false;
 
-        // Option to set unlocked/viewable options in Project Stream
-        bool optionViewableVBA = false;
+		// Option to set unlocked/viewable options in Project Stream
+		bool optionViewableVBA = false;
 
-        // Temp path to unzip OpenXML files to
-        String unzipTempPath = "";
+		// Temp path to unzip OpenXML files to
+		String unzipTempPath = "";
 
 
 		// Start parsing command line arguments
@@ -112,10 +117,10 @@ public class MSOfficeManipulator
 			{ "rr|resetmodulenames", "Undo the set random module names by making the ASCII module names in the DIR stream match their Unicode counter parts",
 				v => optionResetModuleNames = v != null },
 			{ "u|unviewableVBA", "Make VBA Project unviewable/locked.",
-                v => optionUnviewableVBA = v != null },
-            { "uu|viewableVBA", "Make VBA Project viewable/unlocked.",
-                v => optionViewableVBA = v != null },
-            { "v", "Increase debug message verbosity.",
+				v => optionUnviewableVBA = v != null },
+			{ "uu|viewableVBA", "Make VBA Project viewable/unlocked.",
+				v => optionViewableVBA = v != null },
+			{ "v", "Increase debug message verbosity.",
 				v => { if (v != null) ++verbosity; } },
 			{ "h|help",  "Show this message and exit.",
 				v => optionShowHelp = v != null },
@@ -149,135 +154,298 @@ public class MSOfficeManipulator
 		}
 		// End parsing command line arguments
 
+		if(!File.Exists(filename))
+        {
+			Console.WriteLine($"[!] Input file does not exist: \"{filename}\" !");
+			return;
+        }
+
 		// OLE Filename (make a copy so we don't overwrite the original)
 		outFilename = getOutFilename(filename);
 		string oleFilename = outFilename;
 
-		// Attempt to unzip as docm or xlsm OpenXML format
+        try
+        {
+            unzipTempPath = CreateUniqueTempDirectory();
+            ZipFile.ExtractToDirectory(filename, unzipTempPath);
+
+            if (File.Exists(Path.Combine(unzipTempPath, "word", "vbaProject.bin")))
+            {
+                oleFilename = Path.Combine(unzipTempPath, "word", "vbaProject.bin");
+            }
+            else if (File.Exists(Path.Combine(unzipTempPath, "xl", "vbaProject.bin")))
+            {
+                oleFilename = Path.Combine(unzipTempPath, "xl", "vbaProject.bin");
+            }
+            else if (File.Exists(Path.Combine(unzipTempPath, "ppt", "vbaProject.bin")))
+            {
+                oleFilename = Path.Combine(unzipTempPath, "ppt", "vbaProject.bin");
+            }
+
+            is_OpenXML = true;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Input file seems to be a 97-2003 Office document (OLE)");
+
+            // Not OpenXML format, Maybe 97-2003 format, Make a copy
+            if (File.Exists(outFilename)) File.Delete(outFilename);
+            File.Copy(filename, outFilename);
+        }
+
+		// Read relevant streams
+		CompoundFile cf = new CompoundFile(oleFilename, CFSUpdateMode.Update, 0);
+        CFStorage commonStorage = cf.RootStorage;
+
+		bool nestedVBA = false;
+		bool macrosStorageFlag = false;
+        bool vbaProjectCurHasProject = false;
+        CFStorage rootVbaStorage = null;
+
+        if (cf.RootStorage.TryGetStorage("Macros") != null)
+        {
+            commonStorage = cf.RootStorage.GetStorage("Macros");
+			macrosStorage = commonStorage;
+			macrosStorageFlag = true;
+		}
+
+        else if (cf.RootStorage.TryGetStorage("_VBA_PROJECT_CUR") != null)
+        {
+            commonStorage = cf.RootStorage.GetStorage("_VBA_PROJECT_CUR");
+			vbaProjectCurStorage = commonStorage;
+
+            try
+            {
+                var foo = commonStorage.TryGetStorage("PROJECT");
+                vbaProjectCurHasProject = true;
+            }
+            catch (CFItemNotFound)
+            {
+                try
+                {
+                    var foo = commonStorage.TryGetStorage("project");
+                    vbaProjectCurHasProject = true;
+                }
+                catch (CFItemNotFound) 
+                {
+                }
+
+            }
+        }
+
+        else if (cf.RootStorage.TryGetStorage("VBA") != null)
+        {
+            // Publisher: VBA -> VBA
+            rootVbaStorage = cf.RootStorage.GetStorage("VBA");
+
+            try
+            {
+                var foo = rootVbaStorage.GetStream("dir");
+            }
+            catch (CFItemNotFound ex) when (ex.Message.Contains("Cannot find item"))
+            {
+				nestedVBA = true;
+				commonStorage = rootVbaStorage;
+            }
+        }
+
+        var vbaStorage = commonStorage.GetStorage("VBA");
+        if (vbaStorage == null)
+        {
+            throw new CFItemNotFound("Cannot find item");
+        }
+
+		vbaProjectStream = vbaStorage.GetStream("_VBA_PROJECT");
+		byte[] vbaProjectStreamData = vbaProjectStream.GetData();
+
+		CFStorage storageForProject = (nestedVBA) ? rootVbaStorage : vbaStorage;
+
+		if (macrosStorageFlag)
+		{
+			storageForProject = commonStorage;
+		}
+
+		if(vbaProjectCurHasProject)
+        {
+			storageForProject = vbaProjectCurStorage;
+        }
+
 		try
 		{
-			unzipTempPath = CreateUniqueTempDirectory();
-			ZipFile.ExtractToDirectory(filename, unzipTempPath);
-			if (File.Exists(Path.Combine(unzipTempPath, "word", "vbaProject.bin"))) { oleFilename = Path.Combine(unzipTempPath, "word", "vbaProject.bin"); }
-			else if (File.Exists(Path.Combine(unzipTempPath, "xl", "vbaProject.bin"))) { oleFilename = Path.Combine(unzipTempPath, "xl", "vbaProject.bin"); }
-			is_OpenXML = true;
+			projectStream = storageForProject.GetStream("project");
+			projectStreamBytes = projectStream.GetData();
 		}
-		catch (Exception)
+		catch(Exception)
+        {
+			try
+			{
+				projectStream = storageForProject.GetStream("PROJECT");
+				projectStreamBytes = projectStream.GetData();
+			}
+			catch (Exception)
+			{
+				storageForProject = cf.RootStorage;
+				try
+				{
+					projectStream = storageForProject.GetStream("project");
+					projectStreamBytes = projectStream.GetData();
+				}
+				catch (Exception)
+				{
+					try
+					{
+						projectStream = storageForProject.GetStream("PROJECT");
+						projectStreamBytes = projectStream.GetData();
+					}
+					catch (Exception)
+					{
+						Console.WriteLine("[!] Giving up, could not find PROJECT stream! Format not recognized!");
+						System.Environment.Exit(1);
+					}
+				}
+			}
+		}
+
+        dirStream = vbaStorage.GetStream("dir");
+        dirStreamBytes = Decompress(dirStream.GetData());
+
+        // Read project streams as string
+        string projectStreamString = System.Text.Encoding.UTF8.GetString(projectStreamBytes);
+        string projectwmStreamString = "";
+
+        try
 		{
-			// Not OpenXML format, Maybe 97-2003 format, Make a copy
-			if (File.Exists(outFilename)) File.Delete(outFilename);
-			File.Copy(filename, outFilename);
+			try
+			{
+				projectwmStream = storageForProject.GetStream("projectwm");
+				projectwmStreamBytes = projectwmStream.GetData();
+			}
+			catch(Exception)
+            {
+                projectwmStream = storageForProject.GetStream("PROJECTwm");
+                projectwmStreamBytes = projectwmStream.GetData();
+            }
+
+			projectwmStreamString = System.Text.Encoding.UTF8.GetString(projectwmStreamBytes);
 		}
+		catch(System.Exception e)
+        {
+			Console.WriteLine("[-] Could not find projectwm stream.");
+        }
 
-		// Open OLE compound file for editing
-		try
-		{
-			cf = new CompoundFile(oleFilename, CFSUpdateMode.Update, 0);
-		}
-		catch (Exception e)
-		{
-			Console.WriteLine("ERROR: Could not open file " + filename);
-			Console.WriteLine("Please make sure this file exists and is .docm or .xlsm file or a .doc in the Office 97-2003 format.");
-			Console.WriteLine();
-			Console.WriteLine(e.Message);
-			return;
-		}
 
-        // Read relevant streams
-        CFStorage commonStorage = cf.RootStorage; // docm or xlsm
-		if (cf.RootStorage.TryGetStorage("Macros") != null) commonStorage = cf.RootStorage.GetStorage("Macros"); // .doc
-		if (cf.RootStorage.TryGetStorage("_VBA_PROJECT_CUR") != null) commonStorage = cf.RootStorage.GetStorage("_VBA_PROJECT_CUR"); // xls		
-		vbaProjectStream = commonStorage.GetStorage("VBA").GetStream("_VBA_PROJECT").GetData();
-		projectStream = commonStorage.GetStream("project").GetData();
-		projectwmStream = commonStorage.GetStream("projectwm").GetData();
-		dirStream = Decompress(commonStorage.GetStorage("VBA").GetStream("dir").GetData());
 
-		// Read project streams as string
-		string projectStreamString = System.Text.Encoding.UTF8.GetString(projectStream);
-		string projectwmStreamString = System.Text.Encoding.UTF8.GetString(projectwmStream);
-
-		// Find all VBA modules in current file
-		List<ModuleInformation> vbaModules = ParseModulesFromDirStream(dirStream);
+        // Find all VBA modules in current file
+        List<ModuleInformation> vbaModules = ParseModulesFromDirStream(dirStreamBytes);
 
 		// Write streams to debug log (if verbosity enabled)
-		DebugLog("Hex dump of original _VBA_PROJECT stream:\n" + Utils.HexDump(vbaProjectStream));
-		DebugLog("Hex dump of original dir stream:\n" + Utils.HexDump(dirStream));
-		DebugLog("Hex dump of original project stream:\n" + Utils.HexDump(projectStream));
+		DebugLog("Hex dump of original _VBA_PROJECT stream:\n" + Utils.HexDump(vbaProjectStreamBytes));
+		DebugLog("Hex dump of original dir stream:\n" + Utils.HexDump(dirStreamBytes));
+		DebugLog("Hex dump of original PROJECT stream:\n" + Utils.HexDump(projectStreamBytes));
 
 		// Replace Office version in _VBA_PROJECT stream
 		if (targetOfficeVersion != "")
 		{
-			ReplaceOfficeVersionInVBAProject(vbaProjectStream, targetOfficeVersion);
-			commonStorage.GetStorage("VBA").GetStream("_VBA_PROJECT").SetData(vbaProjectStream);
+			ReplaceOfficeVersionInVBAProject(vbaProjectStreamBytes, targetOfficeVersion);
+			vbaProjectStream.SetData(vbaProjectStreamBytes);
 		}
-        //Set ProjectProtectionState and ProjectVisibilityState to locked/unviewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
-        if (optionUnviewableVBA)
-        {
-            string tmpStr                 = Regex.Replace(projectStreamString, "CMG=\".*\"", "CMG=\"\"");
-            string newProjectStreamString = Regex.Replace(tmpStr             ,  "GC=\".*\"", "GC=\"\"" );
-            // Write changes to project stream
-            commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
-        }
+		//Set ProjectProtectionState and ProjectVisibilityState to locked/unviewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
+		if (optionUnviewableVBA)
+		{
+			string tmpStr = Regex.Replace(projectStreamString, "CMG=\".*\"", "CMG=\"\"");
+			string newProjectStreamString = Regex.Replace(tmpStr, "GC=\".*\"", "GC=\"\"");
+			// Write changes to project stream
+			projectStream.SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
+		}
 
-        //Set ProjectProtectionState and ProjectVisibilityState to be viewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
-        if (optionViewableVBA)
-        {
+		//Set ProjectProtectionState and ProjectVisibilityState to be viewable see https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/dfd72140-85a6-4f25-8a17-70a89c00db8c
+		if (optionViewableVBA)
+		{
 			Console.WriteLine("Making the project visible...");
 			// Console.WriteLine("Stream before: " + projectStreamString);					
 			string tmpStr = projectStreamString;
-		    	   tmpStr = Regex.Replace(tmpStr, "CMG=\"?.*\"?", "CMG=\"CAC866BE34C234C230C630C6\"");
-		       	   tmpStr = Regex.Replace(tmpStr,  "ID=\"?.*\"?", "ID=\"{00000000-0000-0000-0000-000000000000}\"");
-		       	   tmpStr = Regex.Replace(tmpStr, "DPB=\"?.*\"?", "DPB=\"94963888C84FE54FE5B01B50E59251526FE67A1CC76C84ED0DAD653FD058F324BFD9D38DED37\"");
-		           tmpStr = Regex.Replace(tmpStr,  "GC=\"?.*\"?", "GC=\"5E5CF2C27646414741474\"");
+			tmpStr = Regex.Replace(tmpStr, "CMG=\"?.*\"?", "CMG=\"CAC866BE34C234C230C630C6\"");
+			tmpStr = Regex.Replace(tmpStr, "ID=\"?.*\"?", "ID=\"{00000000-0000-0000-0000-000000000000}\"");
+			tmpStr = Regex.Replace(tmpStr, "DPB=\"?.*\"?", "DPB=\"94963888C84FE54FE5B01B50E59251526FE67A1CC76C84ED0DAD653FD058F324BFD9D38DED37\"");
+			tmpStr = Regex.Replace(tmpStr, "GC=\"?.*\"?", "GC=\"5E5CF2C27646414741474\"");
 			string newProjectStreamString = tmpStr;
 			// Console.WriteLine("Stream afterw: " + newProjectStreamString);					
 
-            // Write changes to project stream
-            commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
-        }
+			// Write changes to project stream
+			projectStream.SetData(Encoding.UTF8.GetBytes(newProjectStreamString));
+		}
 
 
-        // Hide modules from GUI
-        if (optionHideInGUI)
+		// Hide modules from GUI
+		if (optionHideInGUI)
 		{
 			foreach (var vbaModule in vbaModules)
 			{
-				if ((vbaModule.moduleName != "ThisDocument") && (vbaModule.moduleName != "ThisWorkbook"))
+				if (targetModules.Count > 0)
 				{
-					Console.WriteLine("Hiding module: " + vbaModule.moduleName);
-					projectStreamString = projectStreamString.Replace("Module=" + vbaModule.moduleName, "");
+					if (targetModules.Contains(vbaModule.moduleName) || !targetModules.Any())
+					{
+						Console.WriteLine("Hiding module: " + vbaModule.moduleName);
+						projectStreamString = projectStreamString.Replace("Module=" + vbaModule.moduleName, "");
+					}
+				}
+				else
+				{
+				    if ((vbaModule.moduleName != "ThisDocument") && (vbaModule.moduleName != "ThisWorkbook"))
+					{
+						Console.WriteLine("Hiding module: " + vbaModule.moduleName);
+						projectStreamString = projectStreamString.Replace("Module=" + vbaModule.moduleName, "");
+					}
 				}
 			}
 
 			// Write changes to project stream
-			commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
+			projectStream.SetData(Encoding.UTF8.GetBytes(projectStreamString));
 		}
 
 		// Undo the Hide modules from GUI effects
 		if (optionUnhideInGUI)
 		{
-			ArrayList vbaModulesNamesFromProjectwm = getModulesNamesFromProjectwmStream(projectwmStreamString);
-			Regex theregex = new Regex(@"(Document\=.*\/.{10})([\S\s]*?)(ExeName32\=|Name\=|ID\=|Class\=|BaseClass\=|Package\=|HelpFile\=|HelpContextID\=|Description\=|VersionCompatible32\=|CMG\=|DPB\=|GC\=)");
-			Match m = theregex.Match(projectStreamString);
-			if (m.Groups.Count != 4)
+			if (projectwmStreamString.Length > 0)
 			{
-				Console.WriteLine("Error, could not find the location to insert module names. Not able to unhide modules");
+				ArrayList vbaModulesNamesFromProjectwm = getModulesNamesFromProjectwmStream(projectwmStreamString);
+				Regex theregex = new Regex(@"(Document\=.*\/.{10})([\S\s]*?)(ExeName32\=|Name\=|ID\=|Class\=|BaseClass\=|Package\=|HelpFile\=|HelpContextID\=|Description\=|VersionCompatible32\=|CMG\=|DPB\=|GC\=)");
+				Match m = theregex.Match(projectStreamString);
+				if (m.Groups.Count != 4)
+				{
+					Console.WriteLine("Error, could not find the location to insert module names. Not able to unhide modules");
+				}
+				else
+				{
+					string moduleString = "\r\n";
+
+					foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
+					{
+                        if (targetModules.Count > 0)
+                        {
+                            if (targetModules.Contains(vbaModuleName) || !targetModules.Any())
+                            {
+                                Console.WriteLine("Unhiding module: " + vbaModuleName);
+                                moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+							}
+                        }
+                        else
+                        {
+                            Console.WriteLine("Unhiding module: " + vbaModuleName);
+                            moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
+						}
+					}
+
+					projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
+
+					// write changes to project stream
+					projectStream.SetData(Encoding.UTF8.GetBytes(projectStreamString));
+				}
 			}
 			else
-			{
-				string moduleString = "\r\n";
-
-				foreach (var vbaModuleName in vbaModulesNamesFromProjectwm)
-				{
-					Console.WriteLine("Unhiding module: " + vbaModuleName);
-					moduleString = moduleString.Insert(moduleString.Length, "Module=" + vbaModuleName + "\r\n");
-				}
-
-				projectStreamString = projectStreamString.Replace(m.Groups[0].Value, m.Groups[1].Value + moduleString + m.Groups[3].Value);
-
-				// write changes to project stream
-				commonStorage.GetStream("project").SetData(Encoding.UTF8.GetBytes(projectStreamString));
-			}
+            {
+				Console.WriteLine("[-] Not available: Undo the Hide modules from GUI effects");
+            }
 		}
 
 		// Stomp VBA modules
@@ -290,11 +458,11 @@ public class MSOfficeManipulator
 				DebugLog("VBA module name: " + vbaModule.moduleName + "\nOffset for code: " + vbaModule.textOffset);
 
 				// If this module is a target module, or if no targets are specified, then stomp
-				if (targetModules.Contains(vbaModule.moduleName) || !targetModules.Any())
+				if ((targetModules.Count > 0 && targetModules.Contains(vbaModule.moduleName) ) || !targetModules.Any())
 				{
 					Console.WriteLine("Now stomping VBA code in module: " + vbaModule.moduleName);
 
-					streamBytes = commonStorage.GetStorage("VBA").GetStream(vbaModule.moduleName).GetData();
+					streamBytes = vbaStorage.GetStream(vbaModule.moduleName).GetData();
 
 					DebugLog("Existing VBA source:\n" + GetVBATextFromModuleStream(streamBytes, vbaModule.textOffset));
 
@@ -322,7 +490,7 @@ public class MSOfficeManipulator
 
 					DebugLog("Hex dump of VBA module stream " + vbaModule.moduleName + ":\n" + Utils.HexDump(streamBytes));
 
-					commonStorage.GetStorage("VBA").GetStream(vbaModule.moduleName).SetData(streamBytes);
+					vbaStorage.GetStream(vbaModule.moduleName).SetData(streamBytes);
 				}
 			}
 		}
@@ -334,7 +502,7 @@ public class MSOfficeManipulator
 			Console.WriteLine("Setting random ASCII names for VBA modules in dir stream (while leaving unicode names intact).");
 
 			// Recompress and write to dir stream
-			commonStorage.GetStorage("VBA").GetStream("dir").SetData(Compress(SetRandomNamesInDirStream(dirStream)));
+			dirStream.SetData(Compress(SetRandomNamesInDirStream(dirStreamBytes)));
 		}
 
 		// Reset module names in dir stream so that the ASCII names match the Unicode names (undo SetRandomNames option)
@@ -343,7 +511,7 @@ public class MSOfficeManipulator
 			Console.WriteLine("Resetting module names in dir stream to match names is _VBA_PROJECT stream (undo SetRandomNames option)");
 
 			// Recompress and write to dir stream
-			commonStorage.GetStorage("VBA").GetStream("dir").SetData(Compress(ResetModuleNamesInDirStream(dirStream)));
+			dirStream.SetData(Compress(ResetModuleNamesInDirStream(dirStreamBytes)));
 		}
 
 		// Delete metadata from document
@@ -429,33 +597,33 @@ public class MSOfficeManipulator
 	{
 		Console.WriteLine("Serving request from " + request.RemoteEndPoint.ToString() + " with user agent " + request.UserAgent);
 
-                CompoundFile cf = null;
-                try
-                {
-                    cf = new CompoundFile(outFilename, CFSUpdateMode.Update, 0);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("ERROR: Could not open file " + outFilename);
-                    Console.WriteLine("Please make sure this file exists and is .docm or .xlsm file or a .doc in the Office 97-2003 format.");
-                    Console.WriteLine();
-                    Console.WriteLine(e.Message);
-                }
-                
-		CFStream streamData = cf.RootStorage.GetStorage("Macros").GetStorage("VBA").GetStream("_VBA_PROJECT");
+		CompoundFile cf = null;
+		try
+		{
+			cf = new CompoundFile(outFilename, CFSUpdateMode.Update, 0);
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine("ERROR: Could not open file " + outFilename);
+			Console.WriteLine("Please make sure this file exists and is .docm or .xlsm file or a .doc in the Office 97-2003 format.");
+			Console.WriteLine();
+			Console.WriteLine(e.Message);
+		}
+
+		CFStream streamData = vbaProjectStream;
 		byte[] streamBytes = streamData.GetData();
 
 		string targetOfficeVersion = UserAgentToOfficeVersion(request.UserAgent);
 
 		ReplaceOfficeVersionInVBAProject(streamBytes, targetOfficeVersion);
 
-		cf.RootStorage.GetStorage("Macros").GetStorage("VBA").GetStream("_VBA_PROJECT").SetData(streamBytes);
+		vbaProjectStream.SetData(streamBytes);
 
 		// Commit changes and close file
 		cf.Commit();
 		cf.Close();
 
-                Console.WriteLine("Serving out file '" + outFilename + "'");
+		Console.WriteLine("Serving out file '" + outFilename + "'");
 		return File.ReadAllBytes(outFilename);
 	}
 
@@ -488,7 +656,7 @@ public class MSOfficeManipulator
 		Console.WriteLine();
 		Console.WriteLine("Author: Stan Hegt");
 		Console.WriteLine("Email: stan@outflank.nl");
-		Console.WriteLine();
+        Console.WriteLine();
 		Console.WriteLine("Options:");
 		p.WriteOptionDescriptions(Console.Out);
 	}
@@ -534,11 +702,11 @@ public class MSOfficeManipulator
 			case "2016x64":
 				version[0] = 0xB2;
 				version[1] = 0x00;
-				break;				
+				break;
 			case "2019x64":
 				version[0] = 0xB2;
 				version[1] = 0x00;
-				break;				
+				break;
 			default:
 				Console.WriteLine("ERROR: Incorrect MS Office version specified - skipping this step.");
 				return moduleStream;

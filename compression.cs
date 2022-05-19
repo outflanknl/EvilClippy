@@ -21,9 +21,9 @@ namespace Kavod.Vba.Compression
     {
         internal CompressedChunk(DecompressedChunk decompressedChunk)
         {
-//            Contract.Requires<ArgumentNullException>(decompressedChunk != null);
-//            Contract.Ensures(Header != null);
-//            Contract.Ensures(ChunkData != null);
+            //            Contract.Requires<ArgumentNullException>(decompressedChunk != null);
+            //            Contract.Ensures(Header != null);
+            //            Contract.Ensures(ChunkData != null);
 
             ChunkData = new CompressedChunkData(decompressedChunk);
             if (ChunkData.Size >= Globals.MaxBytesPerChunk)
@@ -35,9 +35,9 @@ namespace Kavod.Vba.Compression
 
         internal CompressedChunk(BinaryReader dataReader)
         {
-//            Contract.Requires<ArgumentNullException>(dataReader != null);
-//            Contract.Ensures(Header != null);
-//            Contract.Ensures(ChunkData != null);
+            //            Contract.Requires<ArgumentNullException>(dataReader != null);
+            //            Contract.Ensures(Header != null);
+            //            Contract.Ensures(ChunkData != null);
 
             Header = new CompressedChunkHeader(dataReader);
             if (Header.IsCompressed)
@@ -86,8 +86,8 @@ namespace Kavod.Vba.Compression
 
         internal CompressedChunkData(DecompressedChunk chunk)
         {
-//            Contract.Requires<ArgumentNullException>(chunk != null);
-            
+            //            Contract.Requires<ArgumentNullException>(chunk != null);
+
             var tokens = Tokenizer.TokenizeUncompressedData(chunk.Data);
             _tokensequences.AddRange(tokens.ToTokenSequences());
         }
@@ -128,7 +128,7 @@ namespace Kavod.Vba.Compression
         internal CompressedChunkHeader(IChunkData chunkData)
         {
             IsCompressed = chunkData is CompressedChunkData;
-            CompressedChunkSize = (ushort) (chunkData.Size + 2);
+            CompressedChunkSize = (ushort)(chunkData.Size + 2);
         }
 
         internal CompressedChunkHeader(UInt16 header)
@@ -191,12 +191,12 @@ namespace Kavod.Vba.Compression
 
         private void ValidateChunkSizeAndCompressedFlag()
         {
-            if (IsCompressed 
+            if (IsCompressed
                 && CompressedChunkSize > 4098)
             {
                 throw new Exception();
             }
-            if (!IsCompressed 
+            if (!IsCompressed
                 && CompressedChunkSize != 4098)
             {
                 throw new Exception();
@@ -219,7 +219,7 @@ namespace Kavod.Vba.Compression
         private const byte SignatureByteSig = 0x1;
 
         private readonly List<CompressedChunk> _compressedChunks = new List<CompressedChunk>();
-        
+
         internal CompressedContainer(byte[] compressedData)
         {
             var reader = new BinaryReader(new MemoryStream(compressedData));
@@ -259,7 +259,7 @@ namespace Kavod.Vba.Compression
                 using (var reader = new BinaryReader(writer.BaseStream))
                 {
                     reader.BaseStream.Position = 0;
-                    return reader.ReadBytes((int) reader.BaseStream.Length);
+                    return reader.ReadBytes((int)reader.BaseStream.Length);
                 }
             }
         }
@@ -530,7 +530,7 @@ namespace Kavod.Vba.Compression
                     {
                         reader.BaseStream.Position = 0;
 
-                        return reader.ReadBytes((int) reader.BaseStream.Length);
+                        return reader.ReadBytes((int)reader.BaseStream.Length);
                     }
                 }
             }
@@ -578,7 +578,7 @@ namespace Kavod.Vba.Compression
             if (bytesToRead > Globals.MaxBytesPerChunk)
                 bytesToRead = Globals.MaxBytesPerChunk;
 
-            Data = reader.ReadBytes((int) bytesToRead);
+            Data = reader.ReadBytes((int)bytesToRead);
         }
 
         internal byte[] Data { get; }
@@ -641,7 +641,7 @@ namespace Kavod.Vba.Compression
 
         internal LiteralToken(byte data)
         {
-            _data = new [] { data };
+            _data = new[] { data };
         }
 
         public void DecompressToken(BinaryWriter writer)
@@ -748,7 +748,7 @@ namespace Kavod.Vba.Compression
                 firstToken = otherToken;
                 secondToken = thisToken;
             }
-//            Contract.Assert(firstToken.Position <= secondToken.Position);
+            //            Contract.Assert(firstToken.Position <= secondToken.Position);
 
             return firstToken.Position + firstToken.Length > secondToken.Position;
         }
@@ -805,7 +805,7 @@ namespace Kavod.Vba.Compression
                 UInt16 offset = 0;
                 UInt16 length = 0;
                 Match(uncompressedData, position, out offset, out length);
-                
+
                 if (length > 0)
                 {
                     yield return new CopyToken(position, offset, length);
@@ -862,14 +862,14 @@ namespace Kavod.Vba.Compression
             {
                 list = new Node(t, list);
             }
-//            Contract.Assert(list != null);
+            //            Contract.Assert(list != null);
 
             return FindBestPath(list);
         }
 
         private static Node FindBestPath(Node node)
         {
-//            Contract.Requires<ArgumentNullException>(node != null);
+            //            Contract.Requires<ArgumentNullException>(node != null);
 
             // find any overlapping tokens
             Node bestPath = null;
@@ -884,7 +884,7 @@ namespace Kavod.Vba.Compression
                     currentPath.NextNode = FindBestPath(nonOverlappingNode);
                 }
 
-                if (bestPath == null 
+                if (bestPath == null
                     || bestPath.Length < currentPath.Length)
                 {
                     bestPath = currentPath;
@@ -895,11 +895,11 @@ namespace Kavod.Vba.Compression
 
         private static IEnumerable<Node> GetOverlappingNodes(Node node)
         {
-//            Contract.Requires<ArgumentNullException>(node != null);
+            //            Contract.Requires<ArgumentNullException>(node != null);
 
             var firstNode = node;
 
-            while (node != null 
+            while (node != null
                 && firstNode.Value.OverlapsWith(node.Value))
             {
                 yield return node;
@@ -909,11 +909,11 @@ namespace Kavod.Vba.Compression
 
         private static Node GetNextNonOverlappingNode(Node node)
         {
-//            Contract.Requires<ArgumentNullException>(node != null);
+            //            Contract.Requires<ArgumentNullException>(node != null);
 
             var firstNode = node;
 
-            while (node != null 
+            while (node != null
                 && firstNode.Value.OverlapsWith(node.Value))
             {
                 node = node.NextNode;
@@ -1018,7 +1018,7 @@ namespace Kavod.Vba.Compression
         {
             public Node(CopyToken value, Node nextNode)
             {
-//                Contract.Requires<ArgumentNullException>(value != null);
+                //                Contract.Requires<ArgumentNullException>(value != null);
 
                 Value = value;
                 NextNode = nextNode;
@@ -1104,10 +1104,10 @@ namespace Kavod.Vba.Compression
         public TokenSequence(IEnumerable<IToken> enumerable) : this()
         {
             _tokens.AddRange(enumerable);
-            
-//            Contract.Assert(_tokens.Count > 0);
-//            Contract.Assert(_tokens.Count <= 8);
-            
+
+            //            Contract.Assert(_tokens.Count > 0);
+            //            Contract.Assert(_tokens.Count <= 8);
+
             // set the flag byte.
             for (var i = 0; i < _tokens.Count; i++)
             {
