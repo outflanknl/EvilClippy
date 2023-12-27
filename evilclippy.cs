@@ -89,6 +89,9 @@ public class MSOfficeManipulator
         // Temp path to unzip OpenXML files to
         String unzipTempPath = "";
 
+        // Output filename
+        String outputFile = "";
+
 
 		// Start parsing command line arguments
 		var p = new OptionSet() {
@@ -117,6 +120,8 @@ public class MSOfficeManipulator
                 v => optionViewableVBA = v != null },
             { "v", "Increase debug message verbosity.",
 				v => { if (v != null) ++verbosity; } },
+            { "o|outputfile=", "Write to the given filename.",
+                v => outputFile = v },
 			{ "h|help",  "Show this message and exit.",
 				v => optionShowHelp = v != null },
 		};
@@ -150,7 +155,11 @@ public class MSOfficeManipulator
 		// End parsing command line arguments
 
 		// OLE Filename (make a copy so we don't overwrite the original)
-		outFilename = getOutFilename(filename);
+        if (outputFile == "") {
+    		outFilename = getOutFilename(filename);
+        } else {
+            outFilename = outputFile;
+        }
 		string oleFilename = outFilename;
 
 		// Attempt to unzip as docm or xlsm OpenXML format
@@ -540,8 +549,10 @@ public class MSOfficeManipulator
 				version[1] = 0x00;
 				break;				
 			default:
-				Console.WriteLine("ERROR: Incorrect MS Office version specified - skipping this step.");
-				return moduleStream;
+				Console.WriteLine("ERROR: Incorrect MS Office version specified - setting 0x00 0x00.");
+				version[0] = 0x00;
+				version[1] = 0x00;
+                break;
 		}
 
 		Console.WriteLine("Targeting pcode on Office version: " + officeVersion);
